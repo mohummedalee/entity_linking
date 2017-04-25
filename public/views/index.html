@@ -1,0 +1,115 @@
+<html>
+<head>
+    <title>Entity Linking Demo</title>
+
+    <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css">
+    <link rel="stylesheet" href="stylesheets/global.css">
+
+    <script>
+        // helper function(s)
+        // ------------------
+
+        // send text to server which can then contact ambiverse without the cross-origin restrictions
+        function submitRequest(){
+            var input = $('#input-textarea').val().trim();
+
+            // send input to Ambiverse to analyze using jquery
+            $.ajax({
+                url: window.location.href + 'forward',
+                type: 'POST',
+                data: {text: input},
+                dataType: 'json',
+                success: function(data){
+                    // show the analyzed sentence div
+                    var container_id = '#analyzed-container';
+                    var textbox_id = '#analyzed-text';
+
+                    // pick slices of the old string and append anchor tags to entities to make new string
+                    var match_count = data.matches.length;
+                    if(match_count > 0){
+                        var final = input.substring(0, data.matches[0].charOffset);
+                        for(var i=0; i<data.matches.length; ++i){
+                            var match = data.matches[i];
+                            var url = match.entity.url;
+                            // bold, underline and anchor tag start
+                            final += '<span style="font-weight: bold; text-decoration: underline;">';
+                            if(url)
+                                final += '<a href="' + url +'" target="_blank">';
+                            // entity name from original string
+                            final += input.substring(match.charOffset, match.charOffset + match.charLength);
+                            // bold, underline and anchor tag end
+                            final += '</span>';
+                            if(url)
+                                final += '</a>';
+                            // process until start of next match
+                            if(i+1 < match_count){
+                                // if another match exists, concat until its beginning
+                                final += input.substring(match.charOffset + match.charLength, data.matches[i+1].charOffset);
+                            }
+                            else{
+                                // otherwise close string using final slice
+                                final += input.substring(match.charOffset + match.charLength, input.length);
+                            }
+                        }
+                    }
+                    else{
+                        var final = input;
+                    }
+
+                    // show final text with links for entities
+                    $(textbox_id).html(final);
+                    $(container_id).show();
+                },
+                error: function(xhr, textStatus, errorThrown){
+                    // show error message for 2 seconds
+                    $('#error-container').fadeIn().delay(2000).fadeOut();
+                }
+            });
+        }
+
+        // hide analyzed text box
+        function hideResult(){
+            $('#analyzed-container').fadeOut();
+        }
+    </script>
+</head>
+<body>
+    <div class="container top-buffer">
+        <div class="col-md-8 col-md-offset-2">
+            <h2>Entity Linking from Ambiverse</h2>
+
+            <p style="color: gray;">
+                Enter your text in the box below and press Analyze to identify named entities in it.
+            </p>
+
+        </div>
+
+        <div class="row">
+            <div class="col-md-8 col-md-offset-2">
+                <form class="form-group">
+                    <textarea class="form-control" id="input-textarea" rows="4">Ma founded Alibaba in Hangzhou with investments from SoftBank and Goldman.</textarea>
+                    <button type="button" class="btn btn-outline-primary top-buffer-small" value="Analyze" onclick="submitRequest();">Analyze</button>
+                </form>
+            </div>
+        </div>
+        <div class="row">
+            <div class="card left-buffer card-outline-primary" id="analyzed-container" style="display: none;">
+                <div class="card-subtitle text-right">
+                    <img class="top-right" src="images/glyphicons-193-remove-sign.png" width="15" height="15" onclick="hideResult();"></img>
+                </div>
+                <div class="card-block" id="analyzed-text">
+                    <!-- Analyzed text will be shown here. -->
+                </div>
+            </div>
+
+            <div class="alert alert-danger left-buffer top-buffer" role="alert" style="display: none;" id="error-container">
+                Ambiverse could not process text/find entities.
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>
